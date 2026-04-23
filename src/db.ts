@@ -1,31 +1,31 @@
 export const enum Role {
-    Admin = 'Admin',
-    User = 'User',
+    ADMIN = 'Admin',
+    USER = 'User',
 };
 export const users =[
     {
         id: 1,
         name: 'Aziz Haddadi',
         email: 'aziz.haddadi@insat.com',
-        role : Role.Admin
+        role : Role.ADMIN   
     },
     {
         id: 2,
         name: 'Malek Tabbabi',
         email: 'malek.tabbabi@insat.com',
-        role: Role.User
+        role: Role.USER
     },
     {
         id: 3,
         name: 'Fares BenHadj Slimane',
         email: 'fares.benhadjslimane@insat.com',
-        role: Role.User
+        role: Role.USER
     },
     {
         id: 4,
         name: 'Med Nadhir Djebbi',
         email: 'mednadhir.djebbi@insat.com',
-        role: Role.User
+        role: Role.USER
     }
 ];
 export const cvs = [
