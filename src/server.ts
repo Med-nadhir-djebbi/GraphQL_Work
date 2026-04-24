@@ -1,9 +1,14 @@
 import {createYoga} from 'graphql-yoga';
-import {createServer} from 'node:http';
+import {createServer, request} from 'node:http';
 import {schema} from './schema';
-import {context} from './context';
+import {db} from './db';
 
-const yoga= createYoga({schema,context});
+const yoga = createYoga({
+  schema,
+  context: () => {
+    return { db };
+  },
+});
 const server = createServer(yoga);
 
 server.listen(4000,()=>{

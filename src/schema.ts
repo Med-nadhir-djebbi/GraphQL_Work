@@ -32,9 +32,6 @@ export const schema =createSchema({
             cvId:Int!,
             skillId:Int!
         }
-        type Mutation{
-            // reached this part 
-        }
     }`,
     resolvers:{
 
