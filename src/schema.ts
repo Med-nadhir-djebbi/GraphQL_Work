@@ -1,6 +1,6 @@
 import { createSchema } from 'graphql-yoga';
 import { db } from './db';
-
+import { getCvService } from './services';
 type Contextdb={
     db : typeof db
 }
@@ -18,7 +18,7 @@ export const schema = createSchema<Contextdb>({
             title:String!
             skills:[Skill!]!
             age:Int!
-            Job:String!
+            job:String!
         }
         enum Role{
             USER
@@ -32,15 +32,74 @@ export const schema = createSchema<Contextdb>({
             Cvs:[Cv!]!
         }
         type Skill{
-        
             id:Int!
             designation:String!
             Cvs:[Cv!]!
-
+        }
+        input CreateCvInput{
+            userId:Int!
+            title:String!
+            age:Int!
+            job:String!
+            skillsIds:[Int!]!
+        }
+        input UpdateCvInput{
+            id:Int!
+            title:String
+            age:Int
+            job:String
+            skillsIds:[Int!]
+        }
+        Mutation{
+        {
+            addCv(CvInput:CreateCvInput!):Cv
+            updateCv(UpdateInput:UpdateCvInput!):Cv
+            deleteCv(id:Int!):String
         }
         
     `,
     resolvers: {
+        Mutation :{
+            addCv(_,{CvInput},context){
+                let cv=getCvService(CvInput.id);
+                if(!cv)
+                {
+                    const newId=Math.max(...context.db.cvs.map((c)=>c.id))+1;
+                    const newCv={
+                        id: newId,
+                        userId: CvInput.userId,
+                        title: CvInput.title,
+                        age : CvInput.age,
+                        Job : CvInput.job
+                    }
+                    context.db.cvs.push(newCv);
+                    for(const skill of CvInput.skillsIds)
+                    {
+                        if(context.db.skills.some((s)=> s.id===skill))
+                            context.db.cvSkills.push({cvId:newId,skillId:skill});
+                    }
+                    return newCv;
+                }
+                else
+                    throw new Error("Cv already exists");
+            },
+            updateCv(_,{UpdateInput},context){
+                let cv=getCvService(UpdateInput.id);
+                if(!cv)
+                    throw new Error("Cv not found");
+                if(!UpdateInput.title===undefined)cv.title=UpdateInput.title;
+                if(!UpdateInput.age===undefined)cv.age=UpdateInput.age;
+                if(!UpdateInput.job===undefined)cv.job=UpdateInput.job;
+                for(const skill of UpdateInput.skillsIds)
+                {
+                    if(context.db.skills.some((s)=>s.id==skill && !context.db.cvSkills.some((sk)=>sk.skillId == skill)))
+                            context.db.cvSkills.push({cvId:cv.id,skillId:skill});
+                }
+                const index = context.db.cvs.findIndex((c)=> c.id===cv.id);   
+                context.db.cvs[index]=cv;
+                return cv;
+            }
+        },
         Role: {
             USER: "User",
             ADMIN: "Admin"
@@ -50,7 +109,7 @@ export const schema = createSchema<Contextdb>({
             return context.db.cvs;
             },
             getCv(_, args, context) {
-            return context.db.cvs.find(cv => cv.id === args.id);
+                return getCvService(args.id);
             }
         },
         Cv: {
@@ -66,15 +125,15 @@ export const schema = createSchema<Contextdb>({
         },
         User: {
             Cvs(parent, _, context) {
-            return context.db.cvs.filter(cv => cv.userId === parent.id);
+                return context.db.cvs.filter(cv => cv.userId === parent.id);
             }
         },
         Skill: {
             Cvs(parent, _, context) {
-            const links = context.db.cvSkills.filter(c => c.skillId === parent.id);
-            return links
-                .map(l => context.db.cvs.find(cv => cv.id === l.cvId))
-                .filter(Boolean);
+                const links = context.db.cvSkills.filter(c => c.skillId === parent.id);
+                return links
+                    .map(l => context.db.cvs.find(cv => cv.id === l.cvId))
+                    .filter(Boolean);
             }
         }
     }
