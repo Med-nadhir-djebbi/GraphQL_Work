@@ -70,7 +70,7 @@ export const schema = createSchema<Contextdb>({
                         userId: CvInput.userId,
                         title: CvInput.title,
                         age : CvInput.age,
-                        Job : CvInput.job
+                        job : CvInput.job
                     }
                     context.db.cvs.push(newCv);
                     for(const skill of CvInput.skillsIds)
