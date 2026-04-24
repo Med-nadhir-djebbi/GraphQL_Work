@@ -1,39 +1,54 @@
-import {createSchema} from 'graphql-yoga';
+import { createSchema } from 'graphql-yoga';
+import { db } from './db';
 
-export const schema =createSchema({
-    typeDefs:`{
+type Contextdb={
+    db : typeof db
+}
+
+
+export const schema = createSchema<Contextdb>({
+    typeDefs: `
         type Query{
-            getAllCvs():[Cv],
+            getAllCvs:[Cv]
             getCv(id:Int!):Cv
         }
         type Cv{
-            id:Int!,
-            userId:Int!,
-            title:String!,
-            age:Int!,
+            id:Int!
+            user:User!
+            title:String!
+            skills:[Skill!]!
+            age:Int!
             Job:String!
         }
         enum Role{
-            USER,
+            USER
             ADMIN
         }
         type User{
-            id:Int!,
-            name:String!,
-            email:String!,
+            id:Int!
+            name:String!
+            email:String!
             Role:Role!
+            Cvs:[Cv!]!
         }
         type Skill{
-        {
-            id:Int!,
-            designation:String!,
-        }
-        type CvSkill{
-            cvId:Int!,
-            skillId:Int!
-        }
-    }`,
-    resolvers:{
+        
+            id:Int!
+            designation:String!
+            Cvs:[Cv!]!
 
+        }
+        
+    `,
+    resolvers: {
+        Query: {
+            getAllCvs(parents, args, context) {
+                return context.db.cvs;
+            },
+            getCv(parents, args, context) {
+                return context.db.cvs.find((cv) => cv.id == args.id);
+            }
+        }
+        
     }
 });
