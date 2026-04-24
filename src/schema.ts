@@ -55,7 +55,7 @@ export const schema = createSchema<Contextdb>({
         },
         Cv: {
             user(parent, _, context) {
-            return context.db.users.find(u => u.id === parent.userId);
+                return context.db.users.find(u => u.id === parent.userId);
             },
             skills(parent, _, context) {
             const cvskills = context.db.cvSkills.filter(c => c.cvId === parent.id);
@@ -66,7 +66,7 @@ export const schema = createSchema<Contextdb>({
         },
         User: {
             Cvs(parent, _, context) {
-            return context.db.cvs.filter(cv => cv.userId === parent.id);
+                return context.db.cvs.filter(cv => cv.userId === parent.id);
             }
         },
         Skill: {
