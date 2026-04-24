@@ -50,8 +50,7 @@ export const schema = createSchema<Contextdb>({
             job:String
             skillsIds:[Int!]
         }
-        Mutation{
-        {
+        type Mutation{
             addCv(CvInput:CreateCvInput!):Cv
             updateCv(UpdateInput:UpdateCvInput!):Cv
             deleteCv(id:Int!):String
@@ -98,6 +97,14 @@ export const schema = createSchema<Contextdb>({
                 const index = context.db.cvs.findIndex((c)=> c.id===cv.id);   
                 context.db.cvs[index]=cv;
                 return cv;
+            },
+            deleteCv(_,{id},context)
+            {
+                let index=context.db.cvs.findIndex((c)=>c.id=id);
+                if(index === -1)
+                    throw new Error("Cv not Found");
+                context.db.cvs.splice(index,1);
+                return "Cv deleted";
             }
         },
         Role: {
