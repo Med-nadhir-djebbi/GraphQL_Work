@@ -60,44 +60,49 @@ export const schema = createSchema<GraphQLContext>({
     `,
     resolvers: {
         Query: {
-            getAllCvs: (_, __, context) => {
-                return context.prisma.cv.findMany();
-            },
-            getCv: (_, args, context) => {
-                return context.prisma.cv.findUnique({
-                    where: { id: args.id }
-                });
-            }
+            getAllCvs: (_parent, _args, context) => context.prisma.cv.findMany(),
+            getCv: (_parent, { id }, context) =>
+                context.prisma.cv.findUnique({
+                    where: { id }
+                })
         },
         Mutation: {
             addCv: (_, { CvInput }, context) => {
                 const { userId, job, title, age, skillsIds } = CvInput;
+                const linkedSkills = skillsIds.map((skillId: number) => ({
+                    skill: { connect: { id: skillId } }
+                }));
+
                 return context.prisma.cv.create({
                     data: {
                         title,
                         job,
                         age,
                         user: { connect: { id: userId } },
-                        skills: {
-                            create: skillsIds.map((skillId: number) => ({
-                                skill: { connect: { id: skillId } }
-                            }))
-                        }
+                        skills: { create: linkedSkills }
                     }
                 });
             },
             updateCv: (_, { UpdateInput }, context) => {
                 const { id, age, job, title, skillsIds } = UpdateInput;
-                
-                const updateData: any = {
-                    age: age ?? undefined,
-                    job: job ?? undefined,
-                    title: title ?? undefined
-                };
 
-                if (skillsIds) {
+                const updateData: {
+                    age?: number;
+                    job?: string;
+                    title?: string;
+                    skills?: {
+                        deleteMany: {};
+                        create: Array<{ skill: { connect: { id: number } } }>;
+                    };
+                } = {};
+
+                if (age !== undefined) updateData.age = age;
+                if (job !== undefined) updateData.job = job;
+                if (title !== undefined) updateData.title = title;
+
+                if (skillsIds !== undefined) {
                     updateData.skills = {
-                        deleteMany: {}, 
+                        deleteMany: {},
                         create: skillsIds.map((skillId: number) => ({
                             skill: { connect: { id: skillId } }
                         }))
@@ -117,29 +122,30 @@ export const schema = createSchema<GraphQLContext>({
             }
         },
         Cv: {
-            user: (parent, _, context) => {
-                return context.prisma.cv.findUnique({ where: { id: parent.id } }).user();
+            user: async (parent, _args, context) => {
+                const cvQuery = context.prisma.cv.findUnique({ where: { id: parent.id } });
+                return cvQuery.user();
             },
-            skills: async (parent, _, context) => {
-                const cvSkills = await context.prisma.cv
+            skills: async (parent, _args, context) => {
+                const cvWithSkills = await context.prisma.cv
                     .findUnique({ where: { id: parent.id } })
                     .skills({ include: { skill: true } });
-                
-                return cvSkills?.map(joinRecord => joinRecord.skill) || [];
+
+                return cvWithSkills?.map((link) => link.skill) ?? [];
             }
         },
         User: {
-            cvs: (parent, _, context) => {
+            cvs: (parent, _args, context) => {
                 return context.prisma.user.findUnique({ where: { id: parent.id } }).cvs();
             }
         },
         Skill: {
-            cvs: async (parent, _, context) => {
-                const skillCvs = await context.prisma.skill
+            cvs: async (parent, _args, context) => {
+                const skillWithCvs = await context.prisma.skill
                     .findUnique({ where: { id: parent.id } })
                     .cvs({ include: { cv: true } });
-                
-                return skillCvs?.map(joinRecord => joinRecord.cv) || [];
+
+                return skillWithCvs?.map((link) => link.cv) ?? [];
             }
         },
         Role: {
