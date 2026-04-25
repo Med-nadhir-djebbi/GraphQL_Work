@@ -1,6 +1,8 @@
 import { createSchema } from 'graphql-yoga';
 import { db } from './db';
 import { getCvService } from './services';
+import { pubSub } from './pubsub';
+
 type Contextdb={
     db : typeof db
 }
@@ -55,7 +57,18 @@ export const schema = createSchema<Contextdb>({
             updateCv(UpdateInput:UpdateCvInput!):Cv
             deleteCv(id:Int!):String
         }
-        
+        enum CvMutationType{
+            CREATED
+            UPDATED
+            DELETED
+        }
+        type CvMutationPayload{
+            mutationType: CvMutationType!
+            cv: Cv
+        }
+        type Subscription{
+            cvChanged: CvMutationPayload!
+        }
     `,
     resolvers: {
         Mutation :{
@@ -77,6 +90,7 @@ export const schema = createSchema<Contextdb>({
                         if(context.db.skills.some((s)=> s.id===skill))
                             context.db.cvSkills.push({cvId:newId,skillId:skill});
                     }
+                    pubSub.publish('CV_CHANGED', { mutationType: 'CREATED', cv: newCv });
                     return newCv;
                 }
                 else
@@ -94,8 +108,9 @@ export const schema = createSchema<Contextdb>({
                     if(context.db.skills.some((s)=>s.id==skill && !context.db.cvSkills.some((sk)=>sk.skillId == skill)))
                             context.db.cvSkills.push({cvId:cv.id,skillId:skill});
                 }
-                const index = context.db.cvs.findIndex((c)=> c.id===cv.id);   
+                const index = context.db.cvs.findIndex((c)=> c.id===cv.id);
                 context.db.cvs[index]=cv;
+                pubSub.publish('CV_CHANGED', { mutationType: 'UPDATED', cv });
                 return cv;
             },
             deleteCv(_,{id},context)
@@ -103,7 +118,9 @@ export const schema = createSchema<Contextdb>({
                 let index=context.db.cvs.findIndex((c)=>c.id=id);
                 if(index === -1)
                     throw new Error("Cv not Found");
+                const deleted = context.db.cvs[index];
                 context.db.cvs.splice(index,1);
+                pubSub.publish('CV_CHANGED', { mutationType: 'DELETED', cv: deleted });
                 return "Cv deleted";
             }
         },
@@ -141,6 +158,12 @@ export const schema = createSchema<Contextdb>({
                 return links
                     .map(l => context.db.cvs.find(cv => cv.id === l.cvId))
                     .filter(Boolean);
+            }
+        },
+        Subscription: {
+            cvChanged: {
+                subscribe: () => pubSub.subscribe('CV_CHANGED'),
+                resolve: (payload: { mutationType: string; cv: any }) => payload,
             }
         }
     }
