@@ -10,7 +10,6 @@ dotenv.config();
 const dbUrl = process.env.DATABASE_URL?.replace('file:', '') || './dev.db';
 const adapter = new PrismaBetterSqlite3({ url: dbUrl });
 
-// 4. Inject the adapter into the Prisma Client! (This fixes your error)
 const prisma = new PrismaClient({ adapter });
 
 export type GraphQLContext = {

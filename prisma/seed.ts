@@ -1,25 +1,44 @@
 import { PrismaClient } from '@prisma/client';
-// Note: If using Prisma 7, follow your adapter setup here or use a simple CLI script
-const prisma = new PrismaClient(); 
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const dbUrl = process.env.DATABASE_URL?.replace('file:', '') || './dev.db';
+const adapter = new PrismaBetterSqlite3({ url: dbUrl });
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const user = await prisma.user.create({
-    data: {
+
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@test.com' },
+    update: {},
+    create: {
       name: 'Admin',
       email: 'admin@test.com',
       password: 'password123',
+      role: 'ADMIN',
     },
   });
 
-  await prisma.skill.createMany({
-    data: [
-      { name: 'TypeScript' },
-      { name: 'Prisma' },
-      { name: 'GraphQL' },
-    ],
-  });
+  const skillsData = ['TypeScript', 'Prisma', 'GraphQL'];
 
-  console.log('Seed data created!');
+  for (const skillName of skillsData) {
+    const skill = await prisma.skill.upsert({
+      where: { name: skillName },
+      update: {},
+      create: { name: skillName },
+    });
+  }
+
+  console.log('Seed data created successfully!');
 }
 
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((e) => {
+    console.error('Error seeding database:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
