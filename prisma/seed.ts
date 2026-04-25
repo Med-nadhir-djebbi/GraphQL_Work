@@ -1,44 +1,62 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import dotenv from 'dotenv';
 
-dotenv.config();
-
-const dbUrl = process.env.DATABASE_URL?.replace('file:', '') || './dev.db';
-const adapter = new PrismaBetterSqlite3({ url: dbUrl });
-const prisma = new PrismaClient({ adapter });
-
-async function main() {
-
-  const adminUser = await prisma.user.upsert({
-    where: { email: 'admin@test.com' },
-    update: {},
-    create: {
-      name: 'Admin',
-      email: 'admin@test.com',
-      password: 'password123',
-      role: 'ADMIN',
-    },
-  });
-
-  const skillsData = ['TypeScript', 'Prisma', 'GraphQL'];
-
-  for (const skillName of skillsData) {
-    const skill = await prisma.skill.upsert({
-      where: { name: skillName },
-      update: {},
-      create: { name: skillName },
-    });
-  }
-
-  console.log('Seed data created successfully!');
+function resolveDatabasePath() {
+  return process.env.DATABASE_URL?.replace('file:', '') || './dev.db';
 }
 
-main()
-  .catch((e) => {
-    console.error('Error seeding database:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
+async function main() {
+  const adapter = new PrismaBetterSqlite3({ url: resolveDatabasePath() });
+  const prisma = new PrismaClient({ adapter });
+
+  try {
+    await prisma.cvSkill.deleteMany();
+    await prisma.cv.deleteMany();
+    await prisma.skill.deleteMany();
+    await prisma.user.deleteMany();
+
+    const user = await prisma.user.create({
+      data: {
+        name: 'Alice Johnson',
+        email: 'alice@example.com',
+        role: Role.USER,
+      } as any,
+    });
+
+    const typeScript = await prisma.skill.create({
+      data: {
+        designation: 'TypeScript',
+      } as any,
+    });
+
+    const graphQl = await prisma.skill.create({
+      data: {
+        designation: 'GraphQL',
+      } as any,
+    });
+
+    await prisma.cv.create({
+      data: {
+        job: 'Developer',
+        title: 'Backend Developer',
+        age: 28,
+        userId: user.id,
+        skills: {
+          create: [
+            { skillId: typeScript.id },
+            { skillId: graphQl.id },
+          ],
+        },
+      } as any,
+    });
+
+    console.log('Seed completed successfully.');
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+main().catch((error) => {
+  console.error('Seed failed:', error);
+  process.exitCode = 1;
+});

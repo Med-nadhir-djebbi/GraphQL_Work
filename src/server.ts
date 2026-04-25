@@ -9,13 +9,10 @@ dotenv.config();
 
 const dbUrl = process.env.DATABASE_URL?.replace('file:', '') || './dev.db';
 const adapter = new PrismaBetterSqlite3({ url: dbUrl });
-
 const prisma = new PrismaClient({ adapter });
-
 export type GraphQLContext = {
   prisma: PrismaClient;
 };
-
 const yoga = createYoga<GraphQLContext>({
   schema,
   context: () => {

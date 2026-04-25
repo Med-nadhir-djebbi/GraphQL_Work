@@ -32,7 +32,7 @@ export const schema = createSchema<GraphQLContext>({
 
         type Skill {
             id: Int!
-            name: String!
+            designation: String!
             cvs: [Cv!]!
         }
 
