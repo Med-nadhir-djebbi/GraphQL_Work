@@ -60,35 +60,29 @@ export const schema = createSchema<Contextdb>({
     resolvers: {
         Mutation :{
             addCv(_,{CvInput},context){
-                let cv=getCvService(CvInput.id);
-                if(!cv)
-                {
-                    const newId=Math.max(...context.db.cvs.map((c)=>c.id))+1;
-                    const newCv={
-                        id: newId,
-                        userId: CvInput.userId,
-                        title: CvInput.title,
-                        age : CvInput.age,
-                        job : CvInput.job
-                    }
-                    context.db.cvs.push(newCv);
-                    for(const skill of CvInput.skillsIds)
-                    {
-                        if(context.db.skills.some((s)=> s.id===skill))
-                            context.db.cvSkills.push({cvId:newId,skillId:skill});
-                    }
-                    return newCv;
+                const newId=Math.max(...context.db.cvs.map((c)=>c.id))+1;
+                const newCv={
+                    id: newId,
+                    userId: CvInput.userId,
+                    title: CvInput.title,
+                    age : CvInput.age,
+                    job : CvInput.job
                 }
-                else
-                    throw new Error("Cv already exists");
+                context.db.cvs.push(newCv);
+                for(const skill of CvInput.skillsIds)
+                {
+                    if(context.db.skills.some((s)=> s.id===skill))
+                        context.db.cvSkills.push({cvId:newId,skillId:skill});
+                }
+                return newCv;
             },
             updateCv(_,{UpdateInput},context){
                 let cv=getCvService(UpdateInput.id);
                 if(!cv)
                     throw new Error("Cv not found");
-                if(!UpdateInput.title===undefined)cv.title=UpdateInput.title;
-                if(!UpdateInput.age===undefined)cv.age=UpdateInput.age;
-                if(!UpdateInput.job===undefined)cv.job=UpdateInput.job;
+                if(!(UpdateInput.title===undefined))cv.title=UpdateInput.title;
+                if(!(UpdateInput.age===undefined))cv.age=UpdateInput.age;
+                if(!(UpdateInput.job===undefined))cv.job=UpdateInput.job;
                 for(const skill of UpdateInput.skillsIds)
                 {
                     if(context.db.skills.some((s)=>s.id==skill && !context.db.cvSkills.some((sk)=>sk.skillId == skill)))
@@ -100,7 +94,7 @@ export const schema = createSchema<Contextdb>({
             },
             deleteCv(_,{id},context)
             {
-                let index=context.db.cvs.findIndex((c)=>c.id=id);
+                let index=context.db.cvs.findIndex((c)=>c.id===id);
                 if(index === -1)
                     throw new Error("Cv not Found");
                 context.db.cvs.splice(index,1);
