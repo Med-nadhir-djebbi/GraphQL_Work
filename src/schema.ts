@@ -1,147 +1,150 @@
 import { createSchema } from 'graphql-yoga';
-import { db } from './db';
-import { getCvService } from './services';
-type Contextdb={
-    db : typeof db
-}
+import type { GraphQLContext } from './server';
 
-
-export const schema = createSchema<Contextdb>({
+export const schema = createSchema<GraphQLContext>({
     typeDefs: `
-        type Query{
-            getAllCvs:[Cv]
-            getCv(id:Int!):Cv
+        type Query {
+            getAllCvs: [Cv!]!
+            getCv(id: Int!): Cv
         }
-        type Cv{
-            id:Int!
-            user:User!
-            title:String!
-            skills:[Skill!]!
-            age:Int!
-            job:String!
+
+        type Cv {
+            id: Int!
+            title: String!
+            job: String!
+            age: Int!
+            user: User!
+            skills: [Skill!]!
         }
-        enum Role{
+
+        enum Role {
             USER
             ADMIN
         }
-        type User{
-            id:Int!
-            name:String!
-            email:String!
-            role:Role!
-            Cvs:[Cv!]!
+
+        type User {
+            id: Int!
+            name: String!
+            email: String!
+            role: Role!
+            cvs: [Cv!]!
         }
-        type Skill{
-            id:Int!
-            designation:String!
-            Cvs:[Cv!]!
+
+        type Skill {
+            id: Int!
+            name: String!
+            cvs: [Cv!]!
         }
-        input CreateCvInput{
-            userId:Int!
-            title:String!
-            age:Int!
-            job:String!
-            skillsIds:[Int!]!
+
+        input CreateCvInput {
+            userId: Int!
+            job: String!
+            title: String!
+            age: Int!
+            skillsIds: [Int!]!
         }
-        input UpdateCvInput{
-            id:Int!
-            title:String
-            age:Int
-            job:String
-            skillsIds:[Int!]
+
+        input UpdateCvInput {
+            id: Int!
+            age: Int
+            job: String
+            title: String
+            skillsIds: [Int!]
         }
-        type Mutation{
-            addCv(CvInput:CreateCvInput!):Cv
-            updateCv(UpdateInput:UpdateCvInput!):Cv
-            deleteCv(id:Int!):String
+
+        type Mutation {
+            addCv(CvInput: CreateCvInput!): Cv
+            updateCv(UpdateInput: UpdateCvInput!): Cv
+            deleteCv(id: Int!): String
         }
-        
     `,
     resolvers: {
-        Mutation :{
-            addCv(_,{CvInput},context){
-                let cv=getCvService(CvInput.id);
-                if(!cv)
-                {
-                    const newId=Math.max(...context.db.cvs.map((c)=>c.id))+1;
-                    const newCv={
-                        id: newId,
-                        userId: CvInput.userId,
-                        title: CvInput.title,
-                        age : CvInput.age,
-                        job : CvInput.job
-                    }
-                    context.db.cvs.push(newCv);
-                    for(const skill of CvInput.skillsIds)
-                    {
-                        if(context.db.skills.some((s)=> s.id===skill))
-                            context.db.cvSkills.push({cvId:newId,skillId:skill});
-                    }
-                    return newCv;
-                }
-                else
-                    throw new Error("Cv already exists");
+        Query: {
+            getAllCvs: (_, __, context) => {
+                return context.prisma.cv.findMany();
             },
-            updateCv(_,{UpdateInput},context){
-                let cv=getCvService(UpdateInput.id);
-                if(!cv)
-                    throw new Error("Cv not found");
-                if(!UpdateInput.title===undefined)cv.title=UpdateInput.title;
-                if(!UpdateInput.age===undefined)cv.age=UpdateInput.age;
-                if(!UpdateInput.job===undefined)cv.job=UpdateInput.job;
-                for(const skill of UpdateInput.skillsIds)
-                {
-                    if(context.db.skills.some((s)=>s.id==skill && !context.db.cvSkills.some((sk)=>sk.skillId == skill)))
-                            context.db.cvSkills.push({cvId:cv.id,skillId:skill});
-                }
-                const index = context.db.cvs.findIndex((c)=> c.id===cv.id);   
-                context.db.cvs[index]=cv;
-                return cv;
-            },
-            deleteCv(_,{id},context)
-            {
-                let index=context.db.cvs.findIndex((c)=>c.id=id);
-                if(index === -1)
-                    throw new Error("Cv not Found");
-                context.db.cvs.splice(index,1);
-                return "Cv deleted";
+            getCv: (_, args, context) => {
+                return context.prisma.cv.findUnique({
+                    where: { id: args.id }
+                });
             }
         },
-        Role: {
-            USER: "User",
-            ADMIN: "Admin"
-        },
-        Query: {
-            getAllCvs(_, __, context) {
-            return context.db.cvs;
+        Mutation: {
+            addCv: (_, { CvInput }, context) => {
+                const { userId, job, title, age, skillsIds } = CvInput;
+                return context.prisma.cv.create({
+                    data: {
+                        title,
+                        job,
+                        age,
+                        user: { connect: { id: userId } },
+                        skills: {
+                            create: skillsIds.map((skillId: number) => ({
+                                skill: { connect: { id: skillId } }
+                            }))
+                        }
+                    }
+                });
             },
-            getCv(_, args, context) {
-                return getCvService(args.id);
+            updateCv: (_, { UpdateInput }, context) => {
+                const { id, age, job, title, skillsIds } = UpdateInput;
+                
+                const updateData: any = {
+                    age: age ?? undefined,
+                    job: job ?? undefined,
+                    title: title ?? undefined
+                };
+
+                if (skillsIds) {
+                    updateData.skills = {
+                        deleteMany: {}, 
+                        create: skillsIds.map((skillId: number) => ({
+                            skill: { connect: { id: skillId } }
+                        }))
+                    };
+                }
+
+                return context.prisma.cv.update({
+                    where: { id },
+                    data: updateData
+                });
+            },
+            deleteCv: async (_, { id }, context) => {
+                await context.prisma.cv.delete({
+                    where: { id }
+                });
+                return `CV with ID ${id} was successfully deleted.`;
             }
         },
         Cv: {
-            user(parent, _, context) {
-            return context.db.users.find(u => u.id === parent.userId);
+            user: (parent, _, context) => {
+                return context.prisma.cv.findUnique({ where: { id: parent.id } }).user();
             },
-            skills(parent, _, context) {
-            const cvskills = context.db.cvSkills.filter(c => c.cvId === parent.id);
-            return cvskills
-                .map(c => context.db.skills.find(s => s.id === c.skillId))
-                .filter(Boolean);
+            skills: async (parent, _, context) => {
+                const cvSkills = await context.prisma.cv
+                    .findUnique({ where: { id: parent.id } })
+                    .skills({ include: { skill: true } });
+                
+                return cvSkills?.map(joinRecord => joinRecord.skill) || [];
             }
         },
         User: {
-            Cvs(parent, _, context) {
-                return context.db.cvs.filter(cv => cv.userId === parent.id);
+            cvs: (parent, _, context) => {
+                return context.prisma.user.findUnique({ where: { id: parent.id } }).cvs();
             }
         },
         Skill: {
-            Cvs(parent, _, context) {
-                const links = context.db.cvSkills.filter(c => c.skillId === parent.id);
-                return links
-                    .map(l => context.db.cvs.find(cv => cv.id === l.cvId))
-                    .filter(Boolean);
+            cvs: async (parent, _, context) => {
+                const skillCvs = await context.prisma.skill
+                    .findUnique({ where: { id: parent.id } })
+                    .cvs({ include: { cv: true } });
+                
+                return skillCvs?.map(joinRecord => joinRecord.cv) || [];
             }
+        },
+        Role: {
+            USER: "USER",
+            ADMIN: "ADMIN"
         }
     }
 });

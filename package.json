@@ -6,17 +6,22 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "cross-env NODE_ENV=development ts-node-dev --exit-child --respawn src/server.ts",
-    "start": "ts-node src/server.ts"  
+    "start": "ts-node src/server.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "@types/node": "^25.6.0"
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.6.0",
+    "prisma": "^7.8.0"
   },
   "dependencies": {
     "@graphql-tools/schema": "10.0.33",
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-sqlite3": "^12.9.0",
     "graphql": "16.13.2",
     "graphql-yoga": "5.21.0"
   }
